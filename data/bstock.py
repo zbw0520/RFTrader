@@ -27,7 +27,7 @@ def init_db():
     :return:
     """
     # 1. 获取所有股票代码
-    stocks = get_stock_list()
+    stocks = get_recent_stock_list()
     # 2. 存储到csv文件中
     for code in stocks:
         df = get_single_price(code, "daily")
@@ -44,6 +44,7 @@ def convert_single_stock_name_2_code(stock_name):
     rs = bs.query_stock_basic(code_name=stock_name)
     df = convert_result_data_to_dataframe(rs)
     return df["code"].iloc[0]
+
 
 def convert_stock_list_name_2_code(stocks_names):
     """
@@ -78,7 +79,7 @@ def get_recent_trade_dates():
     return latest_date
 
 
-def get_stock_list():
+def get_recent_stock_list():
     """
     获取最近一个交易日的所有A股列表
     :return: stock_list
@@ -355,28 +356,16 @@ def transfer_price_freq(data, frequency):
     return df_trans
 
 
-def get_single_finance(code, date, statDate):
-    """
-    获取单个股票财务指标
-    :param code:
-    :param date:
-    :param statDate:
-    :return:
-    """
-    # 需要更改到baostock平台上
-    return data
-
-
-def get_single_valuation(code, date, statDate):
-    """
-    获取单个股票估值指标
-    :param code:
-    :param date:
-    :param statDate:
-    :return:
-    """
-    data = get_fundamentals(query(valuation).filter(valuation.code == code), date=date, statDate=statDate)
-    return data
+# def get_single_valuation(code, date, statDate):
+#     """
+#     获取单个股票估值指标
+#     :param code:
+#     :param date:
+#     :param statDate:
+#     :return:
+#     """
+#     data = get_fundamentals(query(valuation).filter(valuation.code == code), date=date, statDate=statDate)
+#     return data
 
 
 def calculate_change_pct(data):
@@ -444,7 +433,7 @@ def update_daily_price():
     """
     调用update_single_daily_price()方法更新全部已有股票数据
     """
-    stocks = get_stock_list()
+    stocks = get_recent_stock_list()
     if (pd.DataFrame(stocks).empty):
         print("今日数据服务器仍未更新，请待远端数据更新后再进行update操作！")
     else:
@@ -455,7 +444,7 @@ def update_daily_price():
 
 
 def update_basic_info():
-    stocks = get_stock_list()
+    stocks = get_recent_stock_list()
     if (pd.DataFrame(stocks).empty):
         print("今日数据服务器仍未更新，请待远端数据更新后再进行update操作！")
     else:
@@ -519,4 +508,4 @@ def update_single_data(stock_code, type="price"):
 
 
 if __name__ == "__main__":
-    print(get_stock_list())
+    print(get_recent_stock_list())
