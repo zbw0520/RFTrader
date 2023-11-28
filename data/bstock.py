@@ -102,7 +102,7 @@ def get_stock_list_from_local():
     column_name = "stock_code"
     stock_list = pd.DataFrame()
     # 获取file_root路径
-    file_root = "E:\\Code\\project_quantEx\\RFTrader\\data\\price"
+    file_root = data_root
     # 获取路径下所有csv文件
     files = glob.glob(file_root + "/*.csv")
     for file in files:
@@ -194,7 +194,7 @@ def get_file_root(code, type):
     :rtype: str
     """
     stock_code_file = convert_stock_code_2local(code)
-    file_root = data_root + type + "\\" + stock_code_file + ".csv"
+    file_root = data_root + type + "/" + stock_code_file + ".csv"
 
 
 def get_single_end_date_from_local(code, type):
@@ -284,7 +284,7 @@ def get_csv_data(code, type, new_index=False):
     :rtype: pandas.DataFrame
     """
     code = convert_stock_code_2local(code)
-    file_root = data_root + type + "\\" + code + ".csv"
+    file_root = data_root + type + "/" + code + ".csv"
     if new_index is False:
         return pd.read_csv(file_root, index_col=0)
     elif new_index is True:
@@ -331,7 +331,7 @@ def get_single_price_from_local(code, start_date=None, end_date=None):
         # 获取当天时间字符串
         end_date = str(datetime.date.today())
     # 获取数据库中对应股票价格信息的路径
-    file_root = data_root + "price" + "\\" + code_local + ".csv"
+    file_root = data_root + "price" + "/" + code_local + ".csv"
     # 如果路径不存在
     if os.path.exists(file_root) is False:
         # 更新本地的股票日线数据

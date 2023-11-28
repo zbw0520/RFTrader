@@ -11,7 +11,7 @@ pd.set_option('display.max_rows', 100000)
 pd.set_option('display.max_columns', 1000)
 
 # 全局变量
-data_root = "E:\\Code\\project_quantEx\\RFTrader\\data\\"
+data_root = "/Users/bowenzhang/PycharmProjects/RFTrader/data/"
 
 
 def init_db():
@@ -65,7 +65,7 @@ def export_data(data, filename, type, mode=None):
     :param mode: 写入模式选择：a代表追加，None代表默认w写入
     :return:
     """
-    file_root = data_root + type + "\\" + filename + ".csv"
+    file_root = data_root + type + "/" + filename + ".csv"
     data.index.names = ['date']
     if mode == 'a':
         data.to_csv(file_root, mode=mode, header=False)
@@ -79,7 +79,7 @@ def export_data(data, filename, type, mode=None):
 
 
 def get_csv_data(code, type):
-    file_root = data_root + type + "\\" + code + ".csv"
+    file_root = data_root + type + "/" + code + ".csv"
     return pd.read_csv(file_root)
 
 
@@ -138,7 +138,7 @@ def update_daily_price(type):
     stocks = get_stock_list()
     for stock_code in stocks:
         # 3.1 是否存在文件：不存在-重新获取，存在-3.2
-        file_root = data_root + type + "\\" + stock_code + ".csv"
+        file_root = data_root + type + "/" + stock_code + ".csv"
         if os.path.exists(file_root):
             # 3.2 每日更新数据：获取增量数据 （code、start_date = 对应股票csv中最后一个日期、end_date = timedate.date.today()）
             start_date = pd.DataFrame(get_csv_data(stock_code, "price"))["date"].iloc[-1]
