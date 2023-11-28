@@ -18,7 +18,7 @@ pd.set_option('display.max_rows', 100000)
 pd.set_option('display.max_columns', 1000)
 
 # 全局变量
-data_root = "E:\\Code\\project_quantEx\\RFTrader\\data\\"
+data_root = "/Users/bowenzhang/PycharmProjects/RFTrader/data/"
 
 
 def init_db():
@@ -58,7 +58,7 @@ def convert_stock_list_name_2_code(stocks_names):
     return code
 
 
-def get_recent_trade_dates():
+def get_recent_trade_dates(today=1):
     # 指定前i_days天
     i_days = 10
     # 获取前i_days天的datetime对象
@@ -74,17 +74,20 @@ def get_recent_trade_dates():
         raise KeyError("No trading days in last 10 days!\nTry to increase value of i_days...")
     # 将df中的数据按照时间倒序排列，即最新的日期在第一个
     df = pd.DataFrame(df).sort_values(by="calendar_date", ascending=False)
-    # 将第一个日期取出，并删去时间的部分，并转换为字符串等待输出
-    latest_date = str(df["calendar_date"].iloc[0].date())
+    # 根据today是否真选择将今日或上一个交易日的日期取出，并删去时间的部分，并转换为字符串等待输出
+    if today:
+        latest_date = str(df["calendar_date"].iloc[0].date())
+    else:
+        latest_date = str(df["calendar_date"].iloc[1].date())
     return latest_date
 
 
-def get_recent_stock_list():
+def get_recent_stock_list(today=0):
     """
     获取最近一个交易日的所有A股列表
     :return: stock_list
     """
-    rs = bs.query_all_stock(get_recent_trade_dates())
+    rs = bs.query_all_stock(get_recent_trade_dates(today=today))
     stock_list = convert_result_data_to_dataframe(rs).loc[:, ["code"]]
     return stock_list["code"]
 
@@ -252,7 +255,7 @@ def export_data(data, filename, type, mode=None):
     :param mode: 写入模式选择：a代表追加，None代表默认w写入
     :return:
     """
-    file_root = data_root + type + "\\" + filename + ".csv"
+    file_root = data_root + type + "/" + filename + ".csv"
     if type == "price":
         data.index.names = ['date']
     elif type == "basic":
@@ -444,9 +447,16 @@ def update_daily_price():
 
 
 def update_basic_info():
-    stocks = get_recent_stock_list()
-    if (pd.DataFrame(stocks).empty):
+    # 获取今日或最近一个交易日的股票列表
+    stocks = get_recent_stock_list(today=1)
+    # 获取昨日或上一个交易日的股票列表
+    stocks_pre = get_recent_stock_list(today=0)
+    if pd.DataFrame(stocks).empty:
         print("今日数据服务器仍未更新，请待远端数据更新后再进行update操作！")
+        for stock in stocks_pre:
+            if ("sh" in stock) or ("sz" in stock):
+                update_single_data(stock, "basic")
+        print("更新股票basic数据成功！")
     else:
         for stock in stocks:
             if ("sh" in stock) or ("sz" in stock):
@@ -468,7 +478,7 @@ def update_single_data(stock_code, type="price"):
     # 如果查询的是价格数据
     if type == "price":
         # 是否存在已有数据文件：不存在-重新获取，存在，则进行追加
-        file_root = data_root + type + "\\" + stock_code_file + ".csv"
+        file_root = data_root + type + "/" + stock_code_file + ".csv"
         # 如果路径存在
         if os.path.exists(file_root):
             # 3.2 每日更新数据：获取增量数据 （code、start_date = 对应股票csv中最后一个日期、end_date = timedate.date.today()）
@@ -487,7 +497,7 @@ def update_single_data(stock_code, type="price"):
             print("新建" + stock_code_file + "的" + type + "数据成功！")
     # 股票基本数据采取一只股票一个csv的形式还是
     elif type == "basic":
-        file_root = data_root + type + "\\" + "basic" + ".csv"
+        file_root = data_root + type + "/" + "basic" + ".csv"
         # 如果不存在该股票的基本信息文件路径
         if os.path.exists(file_root) is False:
             # 通过BaoStock获取股票基本数据
