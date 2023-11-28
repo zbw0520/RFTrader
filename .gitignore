@@ -1,0 +1,19 @@
+# Ignore CSV files
+*.csv
+
+# Ignore Python environment files/directories
+venv/
+*.pyc
+__pycache__/
+*.pyo
+
+# Ignore IDE specific files
+.idea/
+
+# Ignore all library files, assuming they are in the 'lib' directory
+Lib/
+Scripts/
+include/
+
+# Ignore all other directories that might contain libraries or binaries
+
