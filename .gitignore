@@ -17,3 +17,4 @@ include/
 
 # Ignore all other directories that might contain libraries or binaries
 
+/Astock_database.db
