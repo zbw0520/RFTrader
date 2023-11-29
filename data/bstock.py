@@ -18,12 +18,13 @@ pd.set_option('display.max_rows', 100000)
 pd.set_option('display.max_columns', 1000)
 
 # 全局变量
+# csv数据存储路径
 data_root = "/Users/bowenzhang/PycharmProjects/RFTrader/data/"
 
 
 def init_db():
     """
-    初始化股票数据库
+    初始化数据库
     :return:
     """
     # 1. 获取所有股票代码
