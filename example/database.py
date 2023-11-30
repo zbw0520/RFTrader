@@ -23,9 +23,9 @@ bs_utils = bs_utils.bstock(database)
 # code_list = stock_list.loc[:, ["code"]]
 
 # 从baostock服务器中获取基本面信息并存入本地数据库
-# stock_list = bs_utils.get_basic_info_from_db(\)
+# stock_list = bs_utils.get_basic_info_from_db()
 # code_list = stock_list.loc[:, ["code"]]
-# st.get_all_fundamentals_into_db(code_list)
+# bs_utils.get_all_fundamentals_into_db(code_list)
 
 # 从本地数据库中获取存储的名为兴业银行的基本面信息
 # code = bs_utils.get_basic_info_from_db(result_column="code"
@@ -40,7 +40,7 @@ bs_utils = bs_utils.bstock(database)
 # stock_list = bs_utils.get_basic_info_from_db()
 # bs_utils.get_all_price_into_db(stock_list.loc[:, ["code"]])
 
-# 从本地数据库中获取名为兴业银行的股票的日线行情信息
+# 从本地数据库中获取名为兴业银行的股票指定日期的日线行情信息
 code = bs_utils.get_basic_info_from_db(result_column="code"
                                        , query_column="code_name"
                                        , query_string="兴业银行")
