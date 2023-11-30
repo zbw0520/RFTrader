@@ -31,6 +31,60 @@ def convert_result_data_to_dataframe(rs):
         raise TypeError("rs must be type of bs.data.resultset.ResultData!")
 
 
+def transfer_price_freq(data, frequency):
+    """
+    将数据转换为指定周期
+    :param data:
+    :param frequency:
+    :return:
+    """
+    df_trans = pd.DataFrame()
+    df_trans['open'] = data['open'].resample(frequency).first()
+    df_trans['close'] = data['close'].resample(frequency).first()
+    df_trans['high'] = data['high'].resample(frequency).first()
+    df_trans['low'] = data['low'].resample(frequency).first()
+
+    return df_trans
+
+
+def convert_stock_code_2local(stock_code):
+    """
+    将BaoStock的股票代码格式转换为本地代码格式（同为JoinQuant代码格式）
+    :param stock_code: BaoStock规定的股票代码格式，例如"sh.000001"、"sz.000001"
+    :type stock_code: str
+    :return: 本地代码格式（同为JoinQuant代码格式），例如"000001.XSHG"、"000001.XSHE"
+    :rtype: str
+    """
+    if "sh" in stock_code:
+        stock_code_file = stock_code[3:] + ".XSHG"
+    elif "sz" in stock_code:
+        stock_code_file = stock_code[3:] + ".XSHE"
+    elif ("XSHE" in stock_code) or ("XSHG" in stock_code):
+        stock_code_file = stock_code
+    else:
+        raise KeyError("Wrong code format!")
+    return stock_code_file
+
+
+def convert_stock_code_2baostock(stock_code):
+    """
+    将BaoStock的股票代码格式转换为本地代码格式（同为JoinQuant代码格式）
+    :param stock_code: 本地代码格式（同为JoinQuant代码格式），例如"000001.XSHG"、"000001.XSHE"
+    :type stock_code: str
+    :return: BaoStock规定的股票代码格式，例如"sh.000001"、"sz.000001"
+    :rtype: str
+    """
+    if "XSHG" in stock_code:
+        stock_code_file = "sh." + stock_code[:6]
+    elif "XSHE" in stock_code:
+        stock_code_file = "sz." + stock_code[:6]
+    elif ("sh" in stock_code) or ("sz" in stock_code) or ("bj" in stock_code):
+        stock_code_file = stock_code
+    else:
+        raise KeyError("Wrong code format!")
+    return stock_code_file
+
+
 class bstock:
     database = None
 
@@ -117,6 +171,11 @@ class bstock:
         df.to_sql(table_name, conn, if_exists='replace', index=False)
         conn.close()
 
+    def append_df_into_db(self, table_name, df):
+        conn = sqlite3.connect(self.database)
+        df.to_sql(table_name, conn, if_exists='append', index=False)
+        conn.close()
+
     def get_basic_info_into_db(self, today=1):
         """
         从baostock服务器上获取最近一个交易日的所有A股的基本信息，其中包含三个字段："code"、"tradeStatus"、"code_name"，
@@ -189,7 +248,7 @@ class bstock:
         :param code: A股股票代码，sh或sz.+6位数字代码
         :return: 股票基本面的DataFrame数据info
         """
-        code = self.convert_stock_code_2baostock(code)
+        code = convert_stock_code_2baostock(code)
         conn = sqlite3.connect(self.database)
         query = ("SELECT * FROM fundamentals WHERE code LIKE '" + code + "'")
         info = pd.read_sql_query(query, conn)
@@ -215,7 +274,7 @@ class bstock:
         :return: 以dataframe形式封装的股票价格数据
         """
         # 如果start_date = None，默认为从上市日期开始
-        code = self.convert_stock_code_2baostock(code)
+        code = convert_stock_code_2baostock(code)
         if start_date is None:
             # 获取证券上市时间
             start_date = self.get_single_stock_start_date_from_db(code)
@@ -237,11 +296,11 @@ class bstock:
             try:
                 price_info = self.get_single_price(code)
                 price_info["code"] = code
-                self.get_df_into_db("price_info", price_info)
+                self.append_df_into_db("price_info", price_info)
             except Exception as e:
                 print(f"Error fetching data for {code}: {e}")
 
-    def get_single_price_from_local(code, start_date=None, end_date=None):
+    def get_single_price_from_db(self, code, start_date=None, end_date=None):
         """
         从本地获取单个股票的价格数据，如果本地不存在该数据，则进行自动更新操作，再从本地获取。
         :param code: 股票代码，格式例如："sh.000001"、"sz.000001"、"000001.XSHE"、"000001.XSHG"
@@ -252,53 +311,22 @@ class bstock:
         :type end_date: str
         :return: 返回股票价格信息
         """
-        # 转换股票代码为本地格式、例如"000001.XSHE"、"000001.XSHG"
-        code_local = convert_stock_code_2local(code)
         # 如果start_date == None，则使用本地数据起始时间（一般为上市时间）
         if start_date is None:
             # 获取本地的数据的起始时间字符串
-            start_date = get_single_start_date_from_local(code, "price")
+            start_date = self.get_single_stock_start_date_from_db(code)
         # 如果end_date == None，则使用当天时间
         if end_date is None:
             # 获取当天时间字符串
             end_date = str(datetime.date.today())
         # 获取数据库中对应股票价格信息的路径
-        file_root = data_root + "price" + "/" + code_local + ".csv"
-        # 如果路径不存在
-        if os.path.exists(file_root) is False:
-            # 更新本地的股票日线数据
-            update_single_data(code_local)
-        # 从csv文件获取数据，并且设置索引列为date
-        data = pd.read_csv(file_root, index_col="date")
-        # 根据日期参数筛选数据
-        data = data[(data.index > start_date) & (data.index < end_date)]
-        return data
-
-    def transfer_price_freq(data, frequency):
-        """
-        将数据转换为指定周期
-        :param data:
-        :param frequency:
-        :return:
-        """
-        df_trans = pd.DataFrame();
-        df_trans['open'] = data['open'].resample(frequency).first()
-        df_trans['close'] = data['close'].resample(frequency).first()
-        df_trans['high'] = data['high'].resample(frequency).first()
-        df_trans['low'] = data['low'].resample(frequency).first()
-
-        return df_trans
-
-    # def get_single_valuation(code, date, statDate):
-    #     """
-    #     获取单个股票估值指标
-    #     :param code:
-    #     :param date:
-    #     :param statDate:
-    #     :return:
-    #     """
-    #     data = get_fundamentals(query(valuation).filter(valuation.code == code), date=date, statDate=statDate)
-    #     return data
+        conn = sqlite3.connect(self.database)
+        query = ("SELECT * FROM price_info WHERE code LIKE '%" + code + "%'")
+        data = pd.read_sql_query(query, conn)
+        # 使用pandas自带功能抓取固定日期间的信息
+        data["date"]=pd.to_datetime(data["date"])
+        filtered_data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
+        return filtered_data.reset_index(drop=True)
 
     def calculate_change_pct(data):
         """
@@ -310,7 +338,7 @@ class bstock:
                             / data['close'].shift(1)
         return data
 
-    def convert_stock_code(stock_code):
+    def convert_stock_code(self, stock_code):
         """
         将股票代码进行转换，得到本地代码格式，例如"000001.XSHG"、"000001.XSHE"，以及BaoStock代码格式，例如"sh.000001"、"sz.000001"
         :param stock_code: 股票代码，例如"sh.000001"、"sz.000001"、"000001.XSHG"、"000001.XSHE"
@@ -320,42 +348,6 @@ class bstock:
         code_local = convert_stock_code_2local(stock_code)
         code_baostock = convert_stock_code_2baostock(stock_code)
         return code_local, code_baostock
-
-    def convert_stock_code_2local(stock_code):
-        """
-        将BaoStock的股票代码格式转换为本地代码格式（同为JoinQuant代码格式）
-        :param stock_code: BaoStock规定的股票代码格式，例如"sh.000001"、"sz.000001"
-        :type stock_code: str
-        :return: 本地代码格式（同为JoinQuant代码格式），例如"000001.XSHG"、"000001.XSHE"
-        :rtype: str
-        """
-        if "sh" in stock_code:
-            stock_code_file = stock_code[3:] + ".XSHG"
-        elif "sz" in stock_code:
-            stock_code_file = stock_code[3:] + ".XSHE"
-        elif ("XSHE" in stock_code) or ("XSHG" in stock_code):
-            stock_code_file = stock_code
-        else:
-            raise KeyError("Wrong code format!")
-        return stock_code_file
-
-    def convert_stock_code_2baostock(self, stock_code):
-        """
-        将BaoStock的股票代码格式转换为本地代码格式（同为JoinQuant代码格式）
-        :param stock_code: 本地代码格式（同为JoinQuant代码格式），例如"000001.XSHG"、"000001.XSHE"
-        :type stock_code: str
-        :return: BaoStock规定的股票代码格式，例如"sh.000001"、"sz.000001"
-        :rtype: str
-        """
-        if "XSHG" in stock_code:
-            stock_code_file = "sh." + stock_code[:6]
-        elif "XSHE" in stock_code:
-            stock_code_file = "sz." + stock_code[:6]
-        elif ("sh" in stock_code) or ("sz" in stock_code) or ("bj" in stock_code):
-            stock_code_file = stock_code
-        else:
-            raise KeyError("Wrong code format!")
-        return stock_code_file
 
     def update_daily_price():
         """

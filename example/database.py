@@ -37,5 +37,13 @@ bs_utils = bs_utils.bstock(database)
 # print(bs_utils.get_single_stock_start_date_from_db("bj.430017"))
 
 # 从baostock服务器更新所有股票的日线行情信息并存入本地数据库
-stock_list = bs_utils.get_basic_info_from_db()
-bs_utils.get_all_price_into_db(stock_list.loc[:, ["code"]])
+# stock_list = bs_utils.get_basic_info_from_db()
+# bs_utils.get_all_price_into_db(stock_list.loc[:, ["code"]])
+
+# 从本地数据库中获取名为兴业银行的股票的日线行情信息
+code = bs_utils.get_basic_info_from_db(result_column="code"
+                                       , query_column="code_name"
+                                       , query_string="兴业银行")
+code = code["code"].iloc[0]
+price_info = bs_utils.get_single_price_from_db(code,start_date="2010-03-04")
+print(price_info)
