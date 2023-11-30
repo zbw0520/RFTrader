@@ -10,6 +10,11 @@ from tqdm import tqdm
 import time
 
 
+class DataNotUpdatedException(Exception):
+    """Exception raised when the data is not updated on the baostock server."""
+    pass
+
+
 def convert_result_data_to_dataframe(rs):
     """
     将bs.data.resultset.ResultData中的pandas.DataFrame数据提取并返回
@@ -18,17 +23,24 @@ def convert_result_data_to_dataframe(rs):
     :return: 转换完成的pandas.DataFrame数据
     :rtype: pandas.DataFrame
     """
-    if type(rs) is bs.data.resultset.ResultData:
-        data_list = []
-        while (rs.error_code == '0') & rs.next():
-            # 获取一条记录，将记录合并在一起
-            data_list.append(rs.get_row_data())
-        result = pd.DataFrame(data_list, columns=rs.fields)
-        # 删去索引
-        result = result.reset_index(drop=True)
-        return result
-    else:
+    # Check if rs is of the expected type
+    if not isinstance(rs, bs.data.resultset.ResultData):
         raise TypeError("rs must be type of bs.data.resultset.ResultData!")
+
+    # Initialize an empty list to store row data
+    data_list = []
+
+    # Fetch all rows in a batch (more efficient than one by one)
+    while (rs.error_code == '0') & rs.next():
+        data_list.append(rs.get_row_data())
+
+    # Convert the list of rows to a DataFrame in one go
+    result = pd.DataFrame(data_list, columns=rs.fields)
+
+    # If resetting index is not crucial, consider removing the next line
+    # result.reset_index(drop=True, inplace=True)
+
+    return result
 
 
 def transfer_price_freq(data, frequency):
@@ -264,6 +276,22 @@ class bstock:
         data = self.get_single_stock_fundamentals_from_db(code)
         return data["ipoDate"].iloc[0]
 
+    def get_single_stock_end_date_from_db(self, code):
+        """
+        从本地数据库中查找单个股票的最后一个交易日的日期[String]
+        :param code: A股股票代码，sh或sz.+6位数字代码
+        :return: 股票上市时间
+        """
+        # SQL Query
+        query = 'SELECT MAX(date) FROM price_info WHERE code = ?;'
+
+        # Database Connection and Query Execution
+        with sqlite3.connect(self.database) as conn:
+            cur = conn.cursor()
+            cur.execute(query, (code,))
+            end_date = cur.fetchone()[0]
+        return end_date
+
     def get_single_price(self, code, frequency='d', start_date=None, end_date=None):
         """
         获取单个股票的日线行情数据
@@ -302,65 +330,72 @@ class bstock:
 
     def get_single_price_from_db(self, code, start_date=None, end_date=None):
         """
-        从本地获取单个股票的价格数据，如果本地不存在该数据，则进行自动更新操作，再从本地获取。
+        从本地获取单个股票的日线行情信息
         :param code: 股票代码，格式例如："sh.000001"、"sz.000001"、"000001.XSHE"、"000001.XSHG"
         :type code: str
         :param start_date: 开始日期，默认空则使用上市日期，例如"2022-01-01"
         :type start_date: str
         :param end_date: 结束日期，默认空使用今日日期，例如"2022-01-01"
         :type end_date: str
-        :return: 返回股票价格信息
+        :return: 返回单个股票的日线行情信息
         """
         # 如果start_date == None，则使用本地数据起始时间（一般为上市时间）
         if start_date is None:
-            # 获取本地的数据的起始时间字符串
             start_date = self.get_single_stock_start_date_from_db(code)
-        # 如果end_date == None，则使用当天时间
         if end_date is None:
-            # 获取当天时间字符串
             end_date = str(datetime.date.today())
-        # 获取数据库中对应股票价格信息的路径
-        conn = sqlite3.connect(self.database)
-        query = ("SELECT * FROM price_info WHERE code LIKE '%" + code + "%'")
-        data = pd.read_sql_query(query, conn)
-        # 使用pandas自带功能抓取固定日期间的信息
-        data["date"]=pd.to_datetime(data["date"])
-        filtered_data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
-        return filtered_data.reset_index(drop=True)
+            # 使用这种方法建立数据库的连接，可以保证操作完成之后，即便是发生了异常，也可以保证其被关闭
+            with sqlite3.connect(self.database) as conn:
+                # 使用参数占位符编写SQL请求，这里是为了保证不发生SQL注入攻击
+                # 即使我数据库中的date信息是字符串，但是这里还是可以直接使用date信息进行比较，
+                # 这里是因为大多数数据库可以直接对date对象或者string对象进行比较，
+                # 特别是当string的格式为"YYYY-MM-DD"
+                query = """
+                        SELECT * FROM price_info
+                        WHERE code = ? AND date >= ? AND date <= ?
+                    """
+                # 执行带有参数的SQL语句
+                data = pd.read_sql_query(query, conn, params=(code, start_date, end_date))
 
-    def calculate_change_pct(data):
-        """
-        涨跌幅=（当期收盘价-前期收盘价）/前期收盘价
-        :param data: dataframe，带有收盘价
-        :return: dataframe，带有涨跌幅
-        """
-        data['close_pct'] = (data['close'] - data['close'].shift(1)) \
-                            / data['close'].shift(1)
-        return data
+            # 将数据的date数据转换为datetime对象
+            data["date"] = pd.to_datetime(data["date"])
+            # 返回去除索引的股票日线行情信息
+            return data.reset_index(drop=True)
 
-    def convert_stock_code(self, stock_code):
-        """
-        将股票代码进行转换，得到本地代码格式，例如"000001.XSHG"、"000001.XSHE"，以及BaoStock代码格式，例如"sh.000001"、"sz.000001"
-        :param stock_code: 股票代码，例如"sh.000001"、"sz.000001"、"000001.XSHG"、"000001.XSHE"
-        :return code_baostock: BaoStock代码格式，例如"sh.000001"、"sz.000001"
-        :return code_local: 本地代码格式，例如"000001.XSHG"、"000001.XSHE"
-        """
-        code_local = convert_stock_code_2local(stock_code)
-        code_baostock = convert_stock_code_2baostock(stock_code)
-        return code_local, code_baostock
+    def is_data_updated_on_baostock_server(self):
+        code = "sh.000001"
+        today = datetime.date.today().strftime('%Y-%m-%d')
+        data = self.get_single_price(code, start_date=today, end_date=today)
+        if pd.DataFrame(data).empty:
+            raise DataNotUpdatedException("今日baostock服务器还未更新数据！")
 
-    def update_daily_price():
+    def update_stock_price_info_into_db(self):
         """
         调用update_single_daily_price()方法更新全部已有股票数据
         """
-        stocks = get_recent_stock_list()
-        if (pd.DataFrame(stocks).empty):
-            print("今日数据服务器仍未更新，请待远端数据更新后再进行update操作！")
-        else:
-            for stock in stocks:
-                if ("sh" in stock) or ("sz" in stock):
-                    update_single_data(stock, "price")
-            print("更新股票price数据成功！")
+        # 检测今日baostock服务器的数据是否已经更新好
+        self.is_data_updated_on_baostock_server()
+        today = datetime.date.today()
+        # 获取当前基本信息数据中的股票基本信息列表，从中获取需要更新的全部股票代码数据
+        stock_list = self.get_basic_info_from_db()
+        codes = stock_list.loc[:, ["code"]]
+        for i, code in tqdm(enumerate(codes['code']), desc="日线行情更新进度", total=len(codes)):
+            if "bj" in code:
+                continue
+            try:
+                end_date = self.get_single_stock_end_date_from_db(code)
+                end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+                if end_date == today:
+                    # print("代码为：" + code + "的股票的数据无需更新...")
+                    continue
+                price_info = self.get_single_price(code
+                                                   , start_date=(end_date + datetime.timedelta(days=1)).strftime(
+                        "%Y-%m-%d")
+                                                   , end_date=today.strftime("%Y-%m-%d"))
+                price_info["code"] = code
+                self.append_df_into_db("price_info", price_info)
+            except Exception as e:
+                print(f"Error fetching data for {code}: {e}")
 
     def update_basic_info():
         # 获取今日或最近一个交易日的股票列表

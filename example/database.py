@@ -5,6 +5,10 @@
 @time: 2023/1/14 15:59
 @desc: 测试数据库操作
 """
+import datetime
+from concurrent.futures import ThreadPoolExecutor
+
+from tqdm import tqdm
 
 import data.bstock as bs_utils
 import baostock as bs
@@ -41,9 +45,21 @@ bs_utils = bs_utils.bstock(database)
 # bs_utils.get_all_price_into_db(stock_list.loc[:, ["code"]])
 
 # 从本地数据库中获取名为兴业银行的股票指定日期的日线行情信息
-code = bs_utils.get_basic_info_from_db(result_column="code"
-                                       , query_column="code_name"
-                                       , query_string="兴业银行")
-code = code["code"].iloc[0]
-price_info = bs_utils.get_single_price_from_db(code,start_date="2010-03-04")
-print(price_info)
+# code = bs_utils.get_basic_info_from_db(result_column="code"
+#                                        , query_column="code_name"
+#                                        , query_string="兴业银行")
+# code = code["code"].iloc[0]
+# price_info = bs_utils.get_single_price_from_db(code,start_date="2010-03-04")
+# print(price_info)
+
+# 获取本地数据库中兴业银行股票的最后一个交易日的日期
+# code = bs_utils.get_basic_info_from_db(result_column="code"
+#                                        , query_column="code_name", query_string="兴业银行")
+# code = code["code"].iloc[0]
+# end_date = bs_utils.get_single_stock_end_date_from_db(code)
+
+# 检测baostock服务器是否更新了数据
+# bs_utils.is_data_updated_on_baostock_server()
+
+# 更新当前的日线行情信息
+bs_utils.update_stock_price_info_into_db()
