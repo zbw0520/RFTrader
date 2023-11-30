@@ -44,7 +44,7 @@ print(code_target)
 print(bs_utils.get_single_stock_fundamentals_from_db(code_target))
 ```
 
-从baostock服务器更新所有股票的日线行情信息并存入本地数据库
+从baostock服务器获取所有股票的日线行情信息并存入本地数据库（适用初次获取）
 ```python
 stock_list = bs_utils.get_basic_info_from_db()
 bs_utils.get_all_price_into_db(stock_list.loc[:, ["code"]])
@@ -57,6 +57,11 @@ code = bs_utils.get_basic_info_from_db(result_column="code"
                                        , query_string="兴业银行")
 code = code["code"].iloc[0]
 price_info = bs_utils.get_single_price_from_db(code,start_date="2010-03-04")
+```
+
+从baostock服务器更新所有股票的日线行情信息并存入本地数据库
+```python
+bs_utils.update_stock_price_info_into_db()
 ```
 #### 
 
