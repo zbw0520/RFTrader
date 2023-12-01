@@ -222,16 +222,6 @@ class bstock:
         conn.close()
         return info
 
-    # conn = sqlite3.connect(self.database)
-    # if query_string != "*":
-    #     query = ("SELECT " + result_column + " FROM basic_info WHERE "
-    #              + query_column + " LIKE '" + query_string + "'")
-    # else:
-    #     query = ("SELECT " + result_column + " FROM basic_info")
-    # info = pd.read_sql_query(query, conn)
-    # conn.close()
-    # return info
-
     def get_single_stock_fundamentals(self, code):
         """
         获取股票基本信息：
