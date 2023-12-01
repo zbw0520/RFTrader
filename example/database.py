@@ -19,12 +19,13 @@ database = "/Users/bowenzhang/PycharmProjects/RFTrader/Astock_database.db"
 bs_utils = bs_utils.bstock(database)
 
 # 从baostock服务器更新上一个交易日（today=0）股票的基本信息并存入本地数据库
-# bs_utils.get_basic_info_into_db(today=0)
+# bs_utils.update_basic_info(today=0)
 
-# 从本地sqlite数据库中获取存储的基本信息并存入本地数据库
+# 从本地数据库中获取存储的基本信息
 # stock_list = bs_utils.get_basic_info_from_db()
 # 从本地数据库中获取的基本面信息中拿取全部股票代码DataFrame对象
 # code_list = stock_list.loc[:, ["code"]]
+# print(stock_list)
 
 # 从baostock服务器中获取基本面信息并存入本地数据库
 # stock_list = bs_utils.get_basic_info_from_db()
@@ -38,7 +39,7 @@ bs_utils = bs_utils.bstock(database)
 # print(code_target)
 # print(bs_utils.get_single_stock_fundamentals_from_db(code_target))
 # 获取兴业银行对应的上市时间
-# print(bs_utils.get_single_stock_start_date_from_db("bj.430017"))
+# print(bs_utils.get_single_stock_start_date_from_db("sh.601166"))
 
 # 从baostock服务器更新所有股票的日线行情信息并存入本地数据库
 # stock_list = bs_utils.get_basic_info_from_db()
@@ -62,4 +63,4 @@ bs_utils = bs_utils.bstock(database)
 # bs_utils.is_data_updated_on_baostock_server()
 
 # 更新当前的日线行情信息
-bs_utils.update_stock_price_info_into_db()
+# bs_utils.update_stock_price_info_into_db()
