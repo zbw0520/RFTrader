@@ -174,7 +174,7 @@ class bstock:
         """
         rs = bs.query_all_stock(self.get_recent_trade_dates(today=today))
         info = convert_result_data_to_dataframe(rs)
-        if info.isnull:
+        if info.empty:
             print("今日信息未更新，请将today=0再操作，或者等今日数据更新后再进行操作！")
         return info
 
