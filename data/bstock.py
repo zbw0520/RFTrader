@@ -262,8 +262,8 @@ class bstock:
         """
         code = convert_stock_code_2baostock(code)
         conn = sqlite3.connect(self.database)
-        query = ("SELECT * FROM fundamentals WHERE code LIKE '" + code + "'")
-        info = pd.read_sql_query(query, conn)
+        query = "SELECT * FROM fundamentals WHERE code LIKE ?"
+        info = pd.read_sql_query(query, conn, params=('%' + code + '%',))
         conn.close()
         return info
 
