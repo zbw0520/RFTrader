@@ -10,15 +10,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 from tqdm import tqdm
 
-import data.bstock as bs_utils
+import data.bstock_utils as bs_utils
 import baostock as bs
 import sqlite3
 
 database = "/Users/bowenzhang/PycharmProjects/RFTrader/Astock_database.db"
 # 初始化
-bs_utils = bs_utils.bstock(database)
+bs_utils = bs_utils.Utils(database)
 
-# 从baostock服务器更新上一个交易日（today=0）股票的基本信息并存入本地数据库
+# 从baostock服务器更新上一个交易日（today=0）股票的基本信息并存入本地数据库（几秒钟）
 # bs_utils.update_basic_info(today=0)
 
 # 从本地数据库中获取存储的基本信息
@@ -27,15 +27,12 @@ bs_utils = bs_utils.bstock(database)
 # code_list = stock_list.loc[:, ["code"]]
 # print(stock_list)
 
-# 从baostock服务器中获取基本面信息并存入本地数据库
-# stock_list = bs_utils.get_basic_info_from_db()
-# code_list = stock_list.loc[:, ["code"]]
-# bs_utils.get_all_fundamentals_into_db(code_list)
+# 从baostock服务器中获取基本面信息并存入本地数据库（大概三分钟）
+# bs_utils.update_fundamentals(today=0)
 
-# 从本地数据库中获取存储的名为兴业银行的基本面信息
-# code = bs_utils.get_basic_info_from_db(result_column="code"
-#                                        , query_column="code_name", query_string="兴业银行")
-# code_target = code["code"].iloc[0]
+# 从本地数据库中获取名为兴业银行的基本面信息
+code_target = bs_utils.convert_single_stock_name_2_code("兴业银行")
+print(code_target)
 # print(code_target)
 # print(bs_utils.get_single_stock_fundamentals_from_db(code_target))
 # 获取兴业银行对应的上市时间
@@ -64,3 +61,4 @@ bs_utils = bs_utils.bstock(database)
 
 # 更新当前的日线行情信息
 # bs_utils.update_stock_price_info_into_db()
+
