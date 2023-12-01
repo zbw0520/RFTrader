@@ -7,7 +7,7 @@
 """
 import datetime
 
-import data.bstock as bs
+import data.bstock_utils as bs
 import numpy as np
 import pandas as pd
 import strategy.ma_strategy as ma

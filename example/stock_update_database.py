@@ -7,7 +7,7 @@
 '''
 import pandas as pd
 
-import data.bstock as bs
+import data.bstock_utils as bs
 import datetime
 
 # 更新股票每日价格日K数据

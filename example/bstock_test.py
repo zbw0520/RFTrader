@@ -6,7 +6,7 @@
 @desc:
 """
 
-import data.bstock as st
+import data.bstock_utils as st
 
 code = "sh.601398"
 

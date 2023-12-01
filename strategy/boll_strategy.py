@@ -9,7 +9,7 @@
 import pandas as pd
 import strategy.base as strat
 import numpy as np
-import data.bstock as bs
+import data.bstock_utils as bs
 import matplotlib.pyplot as plt
 
 

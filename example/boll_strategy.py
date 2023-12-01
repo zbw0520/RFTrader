@@ -7,7 +7,7 @@
 """
 
 import strategy.boll_strategy as boll
-import data.bstock as bs
+import data.bstock_utils as bs
 
 stocks = ["兴业银行"]
 codes = bs.convert_stock_list_name_2_code(stocks)

@@ -7,7 +7,7 @@
 """
 import pandas as pd
 import strategy.ma_strategy as ma
-import data.bstock as st
+import data.bstock_utils as st
 
 # 参数1：股票池
 stocks = ["sh.601166"]

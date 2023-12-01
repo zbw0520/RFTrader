@@ -6,7 +6,7 @@
 @desc:
 """
 
-import data.bstock as bs
+import data.bstock_utils as bs
 import strategy.ma_strategy as ma
 import matplotlib.pyplot as plt
 from scipy import stats

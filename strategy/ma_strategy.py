@@ -9,7 +9,7 @@ import datetime
 
 import pandas as pd
 
-import data.bstock as bs
+import data.bstock_utils as bs
 import numpy as np
 
 import strategy.base as strat
