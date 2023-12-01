@@ -207,16 +207,30 @@ class bstock:
         :param result_column: 需要查询的结果需要包括那些列，可选三个："code"、"tradeStatus"、"code_name"，如果"*"那么则是全部查询
         :return: dataframe格式的所有股票的基本信息
         """
-
+        # 对注入SQL请求的列名进行检查，建立白名单，防止出现SQL注入风险
+        allowed_column_names = {"code", "tradeStatus", "code_name", "*"}
+        if result_column not in allowed_column_names or query_column not in allowed_column_names:
+            raise ValueError("Invalid column name")
         conn = sqlite3.connect(self.database)
         if query_string != "*":
-            query = ("SELECT " + result_column + " FROM basic_info WHERE "
-                     + query_column + " LIKE '" + query_string + "'")
+            query = f"SELECT {result_column} FROM basic_info WHERE {query_column} LIKE ?"
+            info = pd.read_sql_query(query, conn, params=("'" + query_string + "'",))
         else:
-            query = ("SELECT " + result_column + " FROM basic_info")
-        info = pd.read_sql_query(query, conn)
+            query = f"SELECT {result_column} FROM basic_info"
+            info = pd.read_sql_query(query, conn)
+
         conn.close()
         return info
+
+    # conn = sqlite3.connect(self.database)
+    # if query_string != "*":
+    #     query = ("SELECT " + result_column + " FROM basic_info WHERE "
+    #              + query_column + " LIKE '" + query_string + "'")
+    # else:
+    #     query = ("SELECT " + result_column + " FROM basic_info")
+    # info = pd.read_sql_query(query, conn)
+    # conn.close()
+    # return info
 
     def get_single_stock_fundamentals(self, code):
         """
