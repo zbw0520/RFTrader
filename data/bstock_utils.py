@@ -1,13 +1,10 @@
 import datetime
-import os
+import sqlite3
 
 import baostock as bs
 import pandas
 import pandas as pd
-
-import sqlite3
 from tqdm import tqdm
-import time
 
 
 class DataNotUpdatedException(Exception):
@@ -97,11 +94,11 @@ def convert_stock_code_2baostock(stock_code):
     return stock_code_file
 
 
-class bstock:
+class Utils:
     database = None
 
     def __init__(self, database_path):
-        bstock.database = database_path
+        self.database = database_path
         # 登录baostock
         lg = bs.login()
         # 显示登陆返回信息
@@ -126,9 +123,9 @@ class bstock:
         :param stock_name: 股票名称
         :return: 股票代码
         """
-        rs = bs.query_stock_basic(code_name=stock_name)
-        df = convert_result_data_to_dataframe(rs)
-        return df["code"].iloc[0]
+        code = self.get_basic_info_from_db(result_column="code"
+                                           , query_column="code_name", query_string=stock_name)
+        return code["code"].iloc[0]
 
     def convert_stock_list_name_2_code(self, stocks_names):
         """
@@ -188,7 +185,7 @@ class bstock:
         df.to_sql(table_name, conn, if_exists='append', index=False)
         conn.close()
 
-    def get_basic_info_into_db(self, today=1):
+    def get_all_basic_info_into_db(self, today=1):
         """
         从baostock服务器上获取最近一个交易日的所有A股的基本信息，其中包含三个字段："code"、"tradeStatus"、"code_name"，
         将这些信息转换为dataframe的格式，并输出，之后存储到制定路径的数据库中。
@@ -214,7 +211,7 @@ class bstock:
         conn = sqlite3.connect(self.database)
         if query_string != "*":
             query = f"SELECT {result_column} FROM basic_info WHERE {query_column} LIKE ?"
-            info = pd.read_sql_query(query, conn, params=("'" + query_string + "'",))
+            info = pd.read_sql_query(query, conn, params=('%' + query_string + '%',))
         else:
             query = f"SELECT {result_column} FROM basic_info"
             info = pd.read_sql_query(query, conn)
@@ -239,12 +236,14 @@ class bstock:
         result = convert_result_data_to_dataframe(rs)
         return result
 
-    def get_all_fundamentals_into_db(self, codes):
+    def get_all_fundamentals_into_db(self, today=1):
         """
         从baostock服务器上获取codes股票代码列表中的所有股票的基本面信息，并将其存入名为database的数据库中。
         :param codes: 需要获取基本面信息的股票代码列表
         :return: 无返回
         """
+        stock_list = self.get_basic_info_from_db()
+        codes = stock_list.loc[:, ["code"]]
         all_fundamentals = []
         for i, code in tqdm(enumerate(codes['code']), desc="基本面信息获取进度", total=len(codes)):
             try:
@@ -400,76 +399,26 @@ class bstock:
                 self.append_df_into_db("price_info", price_info)
             except Exception as e:
                 print(f"Error fetching data for {code}: {e}")
+        print("price_info更新完成！")
 
-    def update_basic_info():
-        # 获取今日或最近一个交易日的股票列表
-        stocks = get_recent_stock_list(today=1)
-        # 获取昨日或上一个交易日的股票列表
-        stocks_pre = get_recent_stock_list(today=0)
-        if pd.DataFrame(stocks).empty:
-            print("今日数据服务器仍未更新，请待远端数据更新后再进行update操作！")
-            for stock in stocks_pre:
-                if ("sh" in stock) or ("sz" in stock):
-                    update_single_data(stock, "basic")
-            print("更新股票basic数据成功！")
-        else:
-            for stock in stocks:
-                if ("sh" in stock) or ("sz" in stock):
-                    update_single_data(stock, "basic")
-            print("更新股票basic数据成功！")
+    def update_basic_info(self, today=1):
+        # 删除本地存在的basic_info table
+        conn = sqlite3.connect(self.database)
+        cursor = conn.cursor()
+        query = "DROP TABLE IF EXISTS basic_info"
+        cursor.execute(query)
+        conn.commit()
+        conn.close()
+        self.get_all_basic_info_into_db(today=today)
+        print("basic_info更新完成！")
 
-    def update_single_data(stock_code, type="price"):
-        """
-        更新指定股票代码的数据，如果本地存有一定量历史数据，则选择增量更新模式；否则，选择新建文件更新模式。
-        所有数据均以csv格式存储。
-        :param stock_code: 股票代码，示例"sh.000001"，"sz.000001"
-        :type stock_code: str
-        :param type: 股票信息，"price"表示价格信息（默认），"basic"表示基本信息
-        :type type: str
-        """
-        # 获取本地股票代码格式，以及BaoStock代码格式
-        stock_code_file, stock = convert_stock_code(stock_code)
-        # 如果查询的是价格数据
-        if type == "price":
-            # 是否存在已有数据文件：不存在-重新获取，存在，则进行追加
-            file_root = data_root + type + "/" + stock_code_file + ".csv"
-            # 如果路径存在
-            if os.path.exists(file_root):
-                # 3.2 每日更新数据：获取增量数据 （code、start_date = 对应股票csv中最后一个日期、end_date = timedate.date.today()）
-                start_date = str(pd.DataFrame(get_csv_data(stock_code_file, "price", True))["date"].iloc[-1])
-                end_date = str(get_recent_trade_dates())
-                if start_date != end_date:
-                    df = get_single_price(stock, "daily", start_date, end_date)
-                    export_data(df, filename=stock_code_file, type="price", mode="a")
-                    print("更新" + stock_code_file + "的" + type + "数据成功！")
-                else:
-                    print(stock_code_file + "已最新，无需更新！")
-            else:
-                # 3.4 追加到已有文件中
-                df = get_single_price(stock, "daily")
-                export_data(df, stock_code_file, "price")
-                print("新建" + stock_code_file + "的" + type + "数据成功！")
-        # 股票基本数据采取一只股票一个csv的形式还是
-        elif type == "basic":
-            file_root = data_root + type + "/" + "basic" + ".csv"
-            # 如果不存在该股票的基本信息文件路径
-            if os.path.exists(file_root) is False:
-                # 通过BaoStock获取股票基本数据
-                rs = bs.query_stock_basic(stock)
-                df = convert_result_data_to_dataframe(rs)
-                # 新建文件夹，并写入新文件中
-                export_data(df, filename=stock_code_file, type="basic")
-                print("新建" + stock_code_file + "的" + type + "数据成功！")
-            else:
-                # 获取源文件内容
-                df_local = get_csv_data(stock, type, False)
-                rs = bs.query_stock_basic(stock)
-                df = convert_result_data_to_dataframe(rs)
-                if df_local == df:
-                    print(stock + "的" + type + "数据已经最新，无需更新！")
-                else:
-                    export_data(df, filename=stock_code_file, type="basic")
-
-
-if __name__ == "__main__":
-    print(get_recent_stock_list())
+    def update_fundamentals(self, today=1):
+        # 删除本地存在的basic_info table
+        conn = sqlite3.connect(self.database)
+        cursor = conn.cursor()
+        query = "DROP TABLE IF EXISTS fundamentals"
+        cursor.execute(query)
+        conn.commit()
+        conn.close()
+        self.get_all_fundamentals_into_db(today=today)
+        print("fundamentals更新完成！")
